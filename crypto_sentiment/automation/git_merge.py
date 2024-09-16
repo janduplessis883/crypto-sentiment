@@ -5,8 +5,8 @@ from colorama import Fore, init
 
 init(autoreset=True)
 
-from project-name.params import LOCAL_GIT_REPO
-from project-name.utils import time_it
+from crypto_sentiment.params import LOCAL_GIT_REPO
+from crypto_sentiment.utils import time_it
 
 repo_path = LOCAL_GIT_REPO
 

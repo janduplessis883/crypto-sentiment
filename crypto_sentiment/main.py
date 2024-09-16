@@ -4,28 +4,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # My own modules
-from project-name.sheethelper import SheetHelper
-from project-name.params import *
-from project-name.utils import *
-from project-name.automation..git_merge import *
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+from crypto_sentiment.sheethelper import SheetHelper
+from crypto_sentiment.params import *
+from crypto_sentiment.utils import *
+from crypto_sentiment.automation.git_merge import *
 
 
 if __name__ == "__main__":

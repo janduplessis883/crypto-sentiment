@@ -1,26 +1,24 @@
 # Core Packages
 numpy
+pendulum
 pandas
-scipy
-scikit-learn
+tqdm
+colorama
 
 # Visualization
 matplotlib
 seaborn
-yellowbrick
+plotly
 
 # Jupyter
 notebook
-ipykernel
 ipywidgets
 
 # Utilities
-colorama
 pytest
 black
 streamlit
-nlpretext
-
+loguru
 # Machine Learning
 # tensorflow-macos==2.10.0; sys_platform == 'darwin' and 'ARM' in platform_version
 # tensorflow==2.10.0; sys_platform == 'darwin' and 'ARM' not in platform_version
@@ -29,10 +27,11 @@ nlpretext
 
 
 # API
+notion-client
+newsapi-python
+
 # fastapi
 # uvicorn
 # pytest-asyncio
 
 # Package specific
-
-

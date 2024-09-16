@@ -1,4 +1,5 @@
 install:
+	@pip install --upgrade pip
 	@pip install -e .
 	@echo "🌵 pip install -e . completed!"
 
@@ -15,18 +16,16 @@ clean:
 all: install clean
 
 app:
-	@streamlit run package/app.py
+	@streamlit run crypto_sentiment/app.py
 
 git_merge:
 	$(MAKE) clean
-	$(MAKE) lint
-	@python package/automation/git_merge.py
+	@python crypto_sentiment/automation/git_merge.py
 	@echo "👍 Git Merge (master) successfull!"
 
 git_push:
 	$(MAKE) clean
-	$(MAKE) lint
-	@python package/automation/git_push.py
+	@python crypto_sentiment/automation/git_push.py
 	@echo "👍 Git Push (branch) successfull!"
 
 test:
@@ -34,4 +33,4 @@ test:
 
 # Specify package name
 lint:
-	@black package/
+	@black crypto_sentiment/

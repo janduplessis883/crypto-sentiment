@@ -28,6 +28,10 @@ git_push:
 	@python crypto_sentiment/automation/git_push.py
 	@echo "👍 Git Push (branch) successfull!"
 
+data:
+	@python crypto_sentiment/data.py
+	@echo "👍 Make DATA successfull!"
+
 test:
 	@pytest -v tests
 

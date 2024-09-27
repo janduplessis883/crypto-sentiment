@@ -47,7 +47,7 @@ def get_news(coins):
     master_json_list = []
     for coin in coins:
         print(f"🅾️ {coin} - getting news...")
-        output_json = api.get_everything(q=coin, language="en", from_param=date_yesterday, sort_by='relevancy')
+        output_json = api.get_everything(q=coin, language="en", from_param='2024-09-25', sort_by='relevancy')
         master_json_list.append(output_json)
 
     return master_json_list
@@ -128,8 +128,8 @@ def sentiment_score_with_transformers(df):
     true_score = []
 
     for index, row in tqdm(df.iterrows(), total=df.shape[0], desc='Sentiment Analysis', smoothing=0.1):
-        title = row['title']
-        news = title
+        title = str(row['title'])
+        news = title + str(row['content'])
         if title != '':
             output = pipe(news)
 
@@ -150,6 +150,8 @@ def sentiment_score_with_transformers(df):
     df['score'] = score
     df['true_score'] = true_score
     return df
+
+
 
 @time_it
 def sentiment_by_coin_df(df, date_yesterday):
@@ -271,7 +273,7 @@ def upload_image_to_github(token, repo, message, content, branch="master", times
     return path
 
 @time_it
-def create_notion_db_page(df, date_yesterday, date_sentiment_mean, date_sentiment_sum):
+def create_notion_db_page(df, date_yesterday, date_sentiment_mean, date_sentiment_sum, total_articles, pos, neut, neg):
     properties = {
             "Name": {
                 "title": [
@@ -332,6 +334,18 @@ def create_notion_db_page(df, date_yesterday, date_sentiment_mean, date_sentimen
             "sum()": {
                 "number": round(date_sentiment_sum, 3)
             },
+            "# Total News Articles": {
+                "number": total_articles
+            },
+            "POS Score Absolute": {
+                "number": round(pos, 3)
+            },
+            "NEUT Score Absolute": {
+                "number": round(neut, 3)
+            },
+            "NEG Score Absolute": {
+                "number": round(neg, 3)
+            },
         }
 
     returned_json = nh.new_page_to_db('3355789d81ce4f48ad0e9a7a73847ae9', page_properties=properties)
@@ -368,6 +382,7 @@ def write_blocks(df, page_id, timestamp):
         coin = row['coin']
         url = row['url']
         label = row['label']
+        source = row['source']
 
         if label == 'neutral':
             indicator = '⚪️'
@@ -384,7 +399,14 @@ def write_blocks(df, page_id, timestamp):
                         {
                             "type": "text",
                             "text": {
-                                "content": f"{indicator} - {coin.upper()} - {title}",
+                                "content": f"{indicator} - {coin.upper()} - {source}: ",
+                                "link": None
+                            }
+                        },
+                        {
+                            "type": "text",
+                            "text": {
+                                "content": f"{title}",
                                 "link": {"url": url} if url else None
                             }
                         }
@@ -399,7 +421,7 @@ def write_blocks(df, page_id, timestamp):
         print(f"✅ Block to Notion")
 
 if __name__ == "__main__":
-    testing = False
+    testing = True
 
     date_yesterday = date_yesterday()
 
@@ -414,6 +436,12 @@ if __name__ == "__main__":
     df = sentiment_score_with_transformers(df)
     print("💾 Sentiment Score DF saved")
     df.to_csv('data/sentiment_score_' + date_yesterday + '.csv', index = False)
+
+    total_articles = df.shape[0]
+
+    pos = df[df['label'] == "positive"]['score'].sum()
+    neut = df[df['label'] == "neutral"]['score'].sum()
+    neg = df[df['label'] == "negative"]['score'].sum()
 
     by_coin = sentiment_by_coin_df(df, date_yesterday)
     by_coin.to_csv('data/by_coin.csv', index=False)
@@ -436,5 +464,5 @@ if __name__ == "__main__":
     branch = "master"
     path = upload_image_to_github(token, repo, message, encoded_image, branch, timestamp)
 
-    page_id = create_notion_db_page(by_coin, date_yesterday, date_sentiment_mean, date_sentiment_sum)
+    page_id = create_notion_db_page(by_coin, date_yesterday, date_sentiment_mean, date_sentiment_sum, total_articles, pos, neut, neg)
     write_blocks(df, page_id, timestamp)

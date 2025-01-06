@@ -1,4 +1,5 @@
 # **Crypto-Sentiment**
+![Image](images/logo.png)
 ## Overview
 Crypto-Sentiment uses NEWSAPI to fetch the latest cryptocurrency news and performs sentiment analysis on the gathered articles. The sentiment analysis is weighted based on the number of articles and the results are uploaded to Notion for archiving and plotting. Additionally, individual article links are saved to the Notion page for later reference.
 Crypto-Sentiment is a Python package designed to analyze the sentiment of cryptocurrency-related news and social media posts. By leveraging natural language processing (NLP) techniques, this package provides insights into the overall market sentiment, which can be useful for traders and investors.

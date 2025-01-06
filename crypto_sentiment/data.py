@@ -12,14 +12,15 @@ import io
 import base64
 from datetime import datetime
 import requests
-from notion_api.notionhelper import NotionHelper
+from jan883_codebase.notion_api.notionhelper import NotionHelper
+
 nh = NotionHelper()
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 # My own modules
 from crypto_sentiment.params import *
 from crypto_sentiment.utils import *
 
-api = NewsApiClient(os.environ.get('NEWSAPI_API_KEY'))
+api = NewsApiClient(os.environ.get("NEWSAPI_API_KEY"))
 
 coins = [
     "bitcoin",
@@ -37,20 +38,31 @@ coins = [
     "stellar",
 ]
 
+
 def date_yesterday():
-# Get today's date and subtract one day
-    date_yesterday = pendulum.now().subtract(days=1).format('YYYY-MM-DD')
+    # Get yesterday's date and return it in YYYY-MM-DD format
+    date_yesterday = pendulum.now().subtract(days=1).format("YYYY-MM-DD")
     return date_yesterday
 
+
+def date_yesterday_minus_one():
+    # Get the day before yesterday's date and return it in YYYY-MM-DD format
+    date_yesterday_minus_one = pendulum.now().subtract(days=2).format("YYYY-MM-DD")
+    return date_yesterday_minus_one
+
+
 @time_it
-def get_news(coins):
+def get_news(coins, to=date_yesterday, from_param=date_yesterday_minus_one):
     master_json_list = []
     for coin in coins:
         print(f"🅾️ {coin} - getting news...")
-        output_json = api.get_everything(q=coin, language="en", from_param='2024-09-25', sort_by='relevancy')
+        output_json = api.get_everything(
+            q=coin, language="en", from_param=from_param, to=to, sort_by="relevancy"
+        )
         master_json_list.append(output_json)
 
     return master_json_list
+
 
 @time_it
 def build_news_df(master_json_list, date_yesterday):
@@ -68,20 +80,20 @@ def build_news_df(master_json_list, date_yesterday):
     for index, output_json in enumerate(master_json_list):
 
         # Skip this iteration if there's a JSON error
-        total_results = output_json.get('totalResults', 0)  # Safely get total results
+        total_results = output_json.get("totalResults", 0)  # Safely get total results
         coin = coins[index]  # Get corresponding coin
 
         # Check if there are any articles
         if total_results > 0:
             # Iterate through the articles
-            articles = output_json.get('articles', [])  # Safely get articles list
+            articles = output_json.get("articles", [])  # Safely get articles list
             for article in articles:
                 # Safely extract values using .get()
-                source = article.get('source', {}).get('name', 'Unknown Source')
-                title = article.get('title', 'No Title')
-                published_at = article.get('publishedAt', 'Unknown Date')
-                content = article.get('content', 'No Content')
-                url = article.get('url', 'No URL')
+                source = article.get("source", {}).get("name", "Unknown Source")
+                title = article.get("title", "No Title")
+                published_at = article.get("publishedAt", "Unknown Date")
+                content = article.get("content", "No Content")
+                url = article.get("url", "No URL")
 
                 # Append the values to the respective lists
                 list_date.append(date_yesterday)
@@ -97,22 +109,22 @@ def build_news_df(master_json_list, date_yesterday):
             list_date.append(date_yesterday)
             list_coin.append(coin)
             list_total_results.append(0)
-            list_published_at.append('')
-            list_source.append('')
-            list_title.append('')
-            list_content.append('')
-            list_url.append('')
+            list_published_at.append("")
+            list_source.append("")
+            list_title.append("")
+            list_content.append("")
+            list_url.append("")
 
     # Create the DataFrame using the collected data
     data = {
-        'date': list_date,
-        'coin': list_coin,
-        'total_results': list_total_results,
-        'published_at': list_published_at,
-        'source': list_source,
-        'title': list_title,
-        'content': list_content,
-        'url': list_url
+        "date": list_date,
+        "coin": list_coin,
+        "total_results": list_total_results,
+        "published_at": list_published_at,
+        "source": list_source,
+        "title": list_title,
+        "content": list_content,
+        "url": list_url,
     }
 
     # Convert to a pandas DataFrame
@@ -122,35 +134,39 @@ def build_news_df(master_json_list, date_yesterday):
 
 @time_it
 def sentiment_score_with_transformers(df):
-    pipe = pipeline("text-classification", model="mrm8488/distilroberta-finetuned-financial-news-sentiment-analysis")
+    pipe = pipeline(
+        "text-classification",
+        model="mrm8488/distilroberta-finetuned-financial-news-sentiment-analysis",
+    )
     label = []
     score = []
     true_score = []
 
-    for index, row in tqdm(df.iterrows(), total=df.shape[0], desc='Sentiment Analysis', smoothing=0.1):
-        title = str(row['title'])
-        news = title + str(row['content'])
-        if title != '':
+    for index, row in tqdm(
+        df.iterrows(), total=df.shape[0], desc="Sentiment Analysis", smoothing=0.1
+    ):
+        title = str(row["title"])
+        news = title + str(row["content"])
+        if title != "":
             output = pipe(news)
 
-            label.append(output[0]['label'])
-            score.append(output[0]['score'])
-            if output[0]['label'] == 'neutral':
+            label.append(output[0]["label"])
+            score.append(output[0]["score"])
+            if output[0]["label"] == "neutral":
                 true_score.append(0.0)
-            elif output[0]['label'] == 'negative':
-                true_score.append(-output[0]['score'])
+            elif output[0]["label"] == "negative":
+                true_score.append(-output[0]["score"])
             else:
-                true_score.append(output[0]['score'])
+                true_score.append(output[0]["score"])
         else:
-            label.append('neutral')
+            label.append("neutral")
             score.append(0.0)
             true_score.append(0.0)
 
-    df['label'] = label
-    df['score'] = score
-    df['true_score'] = true_score
+    df["label"] = label
+    df["score"] = score
+    df["true_score"] = true_score
     return df
-
 
 
 @time_it
@@ -184,45 +200,53 @@ def sentiment_by_coin_df(df, date_yesterday):
         return overall_sentiment / len(group)
 
     # Group by the entity (e.g., Bitcoin, Ethereum, etc.) and calculate sentiment
-    by_coin = df.groupby(['coin', 'total_results']).apply(apply_sentiment_calculation).reset_index(name='overall_sentiment_score')
-    total_articles = by_coin['total_results'].sum()
+    by_coin = (
+        df.groupby(["coin", "total_results"])
+        .apply(apply_sentiment_calculation)
+        .reset_index(name="overall_sentiment_score")
+    )
+    total_articles = by_coin["total_results"].sum()
     print(total_articles)
-    by_coin['date'] = date_yesterday
-    by_coin['weighted_score'] = (by_coin['overall_sentiment_score'] * by_coin['total_results']) / total_articles * 20
+    by_coin["date"] = date_yesterday
+    by_coin["weighted_score"] = (
+        (by_coin["overall_sentiment_score"] * by_coin["total_results"])
+        / total_articles
+        * 20
+    )
     print(by_coin)
     return by_coin
 
 
 @time_it
-def read_txt_file(file_path = 'data/jsonformatter.json'):
+def read_txt_file(file_path="data/jsonformatter.json"):
     # Define the file path (assuming the file is in the current directory or mounted location)
 
     # Read the JSON file
-    with open(file_path, 'r') as file:
+    with open(file_path, "r") as file:
         data = json.load(file)
 
-# Display the structure of the JSON file (first level)
+    # Display the structure of the JSON file (first level)
     return data
 
 
 @time_it
 def save_sns_plot(df_grouped):
 
-    mean_sentiment = df_grouped['weighted_score'].mean()
+    mean_sentiment = df_grouped["weighted_score"].mean()
     filename = f"sentiment_plot.png"
     file_path = f"data/{filename}"
     # Create the bar plot
     plt.figure(figsize=(12, 8))
     sns.barplot(
         data=df_grouped,
-        y='coin',  # Make sure your column is named 'coin'
-        x='weighted_score',
+        y="coin",  # Make sure your column is named 'coin'
+        x="weighted_score",
         color="#4d81a6",
-        dodge=True# Bar color
+        dodge=True,  # Bar color
     )
 
     # Draw a vertical red line at the mean sentiment score
-    plt.axvline(mean_sentiment, color='#bb271a', linewidth=1)
+    plt.axvline(mean_sentiment, color="#bb271a", linewidth=1)
 
     # # Add text "MEAN SENTIMENT" on the red
     # plt.text(
@@ -242,25 +266,29 @@ def save_sns_plot(df_grouped):
 
     return file_path, filename
 
+
 @time_it
 def encode_image_to_base64(file_path):
     with open(file_path, "rb") as image_file:
-        return base64.b64encode(image_file.read()).decode('utf-8')
+        return base64.b64encode(image_file.read()).decode("utf-8")
+
 
 @time_it
-def upload_image_to_github(token, repo, message, content, branch="master", timestamp=timestamp):
+def upload_image_to_github(
+    token, repo, message, content, branch="master", timestamp=timestamp
+):
 
     path = f"images/sentiment_plot_{timestamp}.png"
     url = f"https://api.github.com/repos/{repo}/contents/{path}"
     headers = {
         "Authorization": f"Bearer {token}",
-        "Accept": "application/vnd.github.v3+json"
+        "Accept": "application/vnd.github.v3+json",
     }
 
     data = {
         "message": message,
         "content": content,  # The Base64 encoded image
-        "branch": branch
+        "branch": branch,
     }
 
     response = requests.put(url, headers=headers, data=json.dumps(data))
@@ -272,147 +300,139 @@ def upload_image_to_github(token, repo, message, content, branch="master", times
 
     return path
 
-@time_it
-def create_notion_db_page(df, date_yesterday, date_sentiment_mean, date_sentiment_sum, total_articles, pos, neut, neg):
-    properties = {
-            "Name": {
-                "title": [
-                    {
-                        "text": {
-                            "content": f"Day: {date_yesterday}"
-                        }
-                    }
-                ]
-            },
-            "Date": {
-                "date": {
-                    "start": date_yesterday
-                }
-            },
-            "bitcoin": {
-                "number": round(df[df['coin'] == 'bitcoin']['weighted_score'].iloc[0], 3)
-            },
-            "binance": {
-                "number": round(df[df['coin'] == 'binance']['weighted_score'].iloc[0], 3)
-            },
-            "cardano": {
-                "number": round(df[df['coin'] == 'cardano']['weighted_score'].iloc[0], 3)
-            },
-            "chainlink": {
-                "number": round(df[df['coin'] == 'chainlink']['weighted_score'].iloc[0], 3)
-            },
-            "dogecoin": {
-                "number": round(df[df['coin'] == 'dogecoin']['weighted_score'].iloc[0], 3)
-            },
-            "ethereum": {
-                "number": round(df[df['coin'] == 'ethereum']['weighted_score'].iloc[0], 3)
-            },
-            "litecoin": {
-                "number": round(df[df['coin'] == 'litecoin']['weighted_score'].iloc[0], 3)
-            },
-            "polkadot": {
-                "number": round(df[df['coin'] == 'polkadot']['weighted_score'].iloc[0], 3)
-            },
-            "ripple": {
-                "number": round(df[df['coin'] == 'ripple']['weighted_score'].iloc[0], 3)
-            },
-            "solana": {
-                "number": round(df[df['coin'] == 'solana']['weighted_score'].iloc[0], 3)
-            },
-            "stellar": {
-                "number": round(df[df['coin'] == 'stellar']['weighted_score'].iloc[0], 3)
-            },
-            "uniswap": {
-                "number": round(df[df['coin'] == 'uniswap']['weighted_score'].iloc[0], 3)
-            },
-            "polygon": {
-                "number": round(df[df['coin'] == 'polygon']['weighted_score'].iloc[0], 3)
-            },
-            "mean()": {
-                "number": round(date_sentiment_mean, 3)
-            },
-            "sum()": {
-                "number": round(date_sentiment_sum, 3)
-            },
-            "# Total News Articles": {
-                "number": total_articles
-            },
-            "POS Score Absolute": {
-                "number": round(pos, 3)
-            },
-            "NEUT Score Absolute": {
-                "number": round(neut, 3)
-            },
-            "NEG Score Absolute": {
-                "number": round(neg, 3)
-            },
-        }
 
-    returned_json = nh.new_page_to_db('3355789d81ce4f48ad0e9a7a73847ae9', page_properties=properties)
-    page_id = returned_json['id']
+@time_it
+def create_notion_db_page(
+    df,
+    date_yesterday,
+    date_sentiment_mean,
+    date_sentiment_sum,
+    total_articles,
+    pos,
+    neut,
+    neg,
+):
+    properties = {
+        "Name": {"title": [{"text": {"content": f"Day: {date_yesterday}"}}]},
+        "Date": {"date": {"start": date_yesterday}},
+        "bitcoin": {
+            "number": round(df[df["coin"] == "bitcoin"]["weighted_score"].iloc[0], 3)
+        },
+        "binance": {
+            "number": round(df[df["coin"] == "binance"]["weighted_score"].iloc[0], 3)
+        },
+        "cardano": {
+            "number": round(df[df["coin"] == "cardano"]["weighted_score"].iloc[0], 3)
+        },
+        "chainlink": {
+            "number": round(df[df["coin"] == "chainlink"]["weighted_score"].iloc[0], 3)
+        },
+        "dogecoin": {
+            "number": round(df[df["coin"] == "dogecoin"]["weighted_score"].iloc[0], 3)
+        },
+        "ethereum": {
+            "number": round(df[df["coin"] == "ethereum"]["weighted_score"].iloc[0], 3)
+        },
+        "litecoin": {
+            "number": round(df[df["coin"] == "litecoin"]["weighted_score"].iloc[0], 3)
+        },
+        "polkadot": {
+            "number": round(df[df["coin"] == "polkadot"]["weighted_score"].iloc[0], 3)
+        },
+        "ripple": {
+            "number": round(df[df["coin"] == "ripple"]["weighted_score"].iloc[0], 3)
+        },
+        "solana": {
+            "number": round(df[df["coin"] == "solana"]["weighted_score"].iloc[0], 3)
+        },
+        "stellar": {
+            "number": round(df[df["coin"] == "stellar"]["weighted_score"].iloc[0], 3)
+        },
+        "uniswap": {
+            "number": round(df[df["coin"] == "uniswap"]["weighted_score"].iloc[0], 3)
+        },
+        "polygon": {
+            "number": round(df[df["coin"] == "polygon"]["weighted_score"].iloc[0], 3)
+        },
+        "mean()": {"number": round(date_sentiment_mean, 3)},
+        "sum()": {"number": round(date_sentiment_sum, 3)},
+        "# Total News Articles": {"number": total_articles},
+        "POS Score Absolute": {"number": round(pos, 3)},
+        "NEUT Score Absolute": {"number": round(neut, 3)},
+        "NEG Score Absolute": {"number": round(neg, 3)},
+    }
+
+    returned_json = nh.new_page_to_db(
+        "3355789d81ce4f48ad0e9a7a73847ae9", page_properties=properties
+    )
+    page_id = returned_json["id"]
     return page_id
+
 
 def chunk_blocks(blocks, chunk_size=100):
     for i in range(0, len(blocks), chunk_size):
-        yield blocks[i:i + chunk_size]
+        yield blocks[i : i + chunk_size]
+
 
 @time_it
 def write_blocks(df, page_id, timestamp):
-    blocks = [{
-        "object": "block",
-        "type": "heading_1",
-        "heading_1": {
-            "rich_text": [
-                {"type": "text", "text": {"content": "Today's Cryptocurrency News"}}
-            ]
+    blocks = [
+        {
+            "object": "block",
+            "type": "heading_1",
+            "heading_1": {
+                "rich_text": [
+                    {"type": "text", "text": {"content": "Today's Cryptocurrency News"}}
+                ]
+            },
         },
-    },
-    {
-    "type": "image",
-    "image": {
-        "type": "external",
-        "external": {
-            "url": f"https://github.com/janduplessis883/crypto-sentiment/blob/master/images/sentiment_plot_{timestamp}.png?raw=true"
-        }
-    }
-    }]
+        {
+            "type": "image",
+            "image": {
+                "type": "external",
+                "external": {
+                    "url": f"https://github.com/janduplessis883/crypto-sentiment/blob/master/images/sentiment_plot_{timestamp}.png?raw=true"
+                },
+            },
+        },
+    ]
 
     for index, row in df.iterrows():
-        title = row['title']
-        coin = row['coin']
-        url = row['url']
-        label = row['label']
-        source = row['source']
+        title = row["title"]
+        coin = row["coin"]
+        url = row["url"]
+        label = row["label"]
+        source = row["source"]
 
-        if label == 'neutral':
-            indicator = '⚪️'
-        elif label == 'positive':
-            indicator = '🟢'
+        if label == "neutral":
+            indicator = "⚪️"
+        elif label == "positive":
+            indicator = "🟢"
         else:
-            indicator = '🔴'
+            indicator = "🔴"
 
         block = {
-                "object": "block",
-                "type": "paragraph",
-                "paragraph": {
-                    "rich_text": [
-                        {
-                            "type": "text",
-                            "text": {
-                                "content": f"{indicator} - {coin.upper()} - {source}: ",
-                                "link": None
-                            }
+            "object": "block",
+            "type": "paragraph",
+            "paragraph": {
+                "rich_text": [
+                    {
+                        "type": "text",
+                        "text": {
+                            "content": f"{indicator} - {coin.upper()} - {source}: ",
+                            "link": None,
                         },
-                        {
-                            "type": "text",
-                            "text": {
-                                "content": f"{title}",
-                                "link": {"url": url} if url else None
-                            }
-                        }
-                    ]
-                }
-            }
+                    },
+                    {
+                        "type": "text",
+                        "text": {
+                            "content": f"{title}",
+                            "link": {"url": url} if url else None,
+                        },
+                    },
+                ]
+            },
+        }
 
         blocks.append(block)
 
@@ -420,13 +440,17 @@ def write_blocks(df, page_id, timestamp):
         nh.append_page_body(page_id, chunk)
         print(f"✅ Block to Notion")
 
+
 if __name__ == "__main__":
-    testing = True
+    testing = False
 
     date_yesterday = date_yesterday()
+    date_yesterday_minus_one = date_yesterday_minus_one()
 
     if testing == False:
-        master_json_list = get_news(coins)
+        master_json_list = get_news(
+            coins, from_param=date_yesterday_minus_one, to=date_yesterday
+        )
     elif testing == True:
         print("👷🏻❌❌ TESTING MODE - bypass NEWSAPI")
         master_json_list = read_txt_file()
@@ -435,21 +459,21 @@ if __name__ == "__main__":
 
     df = sentiment_score_with_transformers(df)
     print("💾 Sentiment Score DF saved")
-    df.to_csv('data/sentiment_score_' + date_yesterday + '.csv', index = False)
+    df.to_csv("data/sentiment_score_" + date_yesterday + ".csv", index=False)
 
     total_articles = df.shape[0]
 
-    pos = df[df['label'] == "positive"]['score'].sum()
-    neut = df[df['label'] == "neutral"]['score'].sum()
-    neg = df[df['label'] == "negative"]['score'].sum()
+    pos = df[df["label"] == "positive"]["score"].sum()
+    neut = df[df["label"] == "neutral"]["score"].sum()
+    neg = df[df["label"] == "negative"]["score"].sum()
 
     by_coin = sentiment_by_coin_df(df, date_yesterday)
-    by_coin.to_csv('data/by_coin.csv', index=False)
+    by_coin.to_csv("data/by_coin.csv", index=False)
     print("💾 by_coin DF saved")
 
-    date_sentiment_sum = by_coin['weighted_score'].sum()
+    date_sentiment_sum = by_coin["weighted_score"].sum()
     print(f"➡️ Total Sentiment: {date_sentiment_sum}")
-    date_sentiment_mean = by_coin['weighted_score'].mean()
+    date_sentiment_mean = by_coin["weighted_score"].mean()
     print(f"Ⓜ️  Mean Sentiment: {date_sentiment_mean}")
 
     file_path, filename = save_sns_plot(by_coin)
@@ -458,11 +482,22 @@ if __name__ == "__main__":
     # Example usage:
     encoded_image = encode_image_to_base64(file_path)
 
-    token = os.environ.get('GITHUB_TOKEN_CUSTOM_1')
+    token = os.environ.get("GITHUB_TOKEN_CUSTOM_1")
     repo = "janduplessis883/crypto-sentiment"
     message = "Adding a new image"
     branch = "master"
-    path = upload_image_to_github(token, repo, message, encoded_image, branch, timestamp)
+    path = upload_image_to_github(
+        token, repo, message, encoded_image, branch, timestamp
+    )
 
-    page_id = create_notion_db_page(by_coin, date_yesterday, date_sentiment_mean, date_sentiment_sum, total_articles, pos, neut, neg)
+    page_id = create_notion_db_page(
+        by_coin,
+        date_yesterday,
+        date_sentiment_mean,
+        date_sentiment_sum,
+        total_articles,
+        pos,
+        neut,
+        neg,
+    )
     write_blocks(df, page_id, timestamp)

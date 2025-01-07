@@ -42,10 +42,18 @@ For full functionality, refer to the `data.py` file. This file contains all the 
 
 Contributions are welcome! Please open an issue or submit a pull request for any improvements or bug fixes.
 
+<link rel="stylesheet" href="https://static.hex.site/embed/embedStyles.css" />
+<div class="hex-embed">
+  <iframe width="800" height="600" frameborder="0" src="https://app.hex.tech/b6179f0c-94ef-4383-8418-c1871e6c6b2e/app/50c24228-985e-4754-a1d2-cffefe66bbac/latest?embedded=true"> </iframe>
+  <a href="https://hex.tech/?embed" target="_blank">
+    <img src="https://static.hex.site/embed/hex-logo-embed.png" alt="Hex - a modern data workspace for collaborative notebooks, data apps, dashboards, and reports."/>
+  </a>
+</div>
+
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ## Contact
 
-For any questions or inquiries, please contact the project maintainer at janduplessis@example.com.
+For any questions or inquiries, please contact the project maintainer at drjanduplessis@icloud.com.
